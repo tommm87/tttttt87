@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ リアクションダッシュ</title>
+<style>
+  :root {
+    --wait: #ff6b6b;
+    --wait-dark: #e84a5f;
+    --go: #6bd968;
+    --go-dark: #38b24a;
+    --sky1: #a8e6ff;
+    --sky2: #ffe1f0;
+    --panel: #fffdf7;
+    --ink: #4a3f55;
+    --muted: #9b8fa8;
+    --accent: #ffb400;
+    --line: #ffe0b0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Baloo 2", "Rounded Mplus 1c", -apple-system, "Hiragino Maru Gothic ProN",
+                 "Segoe UI", sans-serif;
+    background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 100%);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 18px 16px 8px;
+    -webkit-user-select: none; user-select: none;
+    overflow-x: hidden;
+  }
+
+  /* floating clouds background */
+  .cloud {
+    position: fixed; top: 0; left: 0;
+    font-size: 3rem; opacity: .55; pointer-events: none;
+    animation: drift linear infinite;
+  }
+  @keyframes drift {
+    from { transform: translateX(-15vw); }
+    to   { transform: translateX(115vw); }
+  }
+
+  header { text-align: center; margin-bottom: 10px; z-index: 1; }
+  h1 {
+    font-size: 2.1rem; letter-spacing: 1px; font-weight: 800;
+    color: #fff;
+    text-shadow: 0 3px 0 #ffb400, 0 6px 8px rgba(0,0,0,.15);
+  }
+  .subtitle {
+    color: var(--ink); font-size: .9rem; margin-top: 8px; font-weight: 600;
+    background: rgba(255,255,255,.6); padding: 5px 14px; border-radius: 20px;
+    display: inline-block;
+  }
+
+  #arena {
+    width: min(560px, 100%);
+    height: 360px;
+    border-radius: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    transition: background .1s;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 14px 0 rgba(0,0,0,.08), 0 20px 40px rgba(0,0,0,.18);
+    border: 6px solid #fff;
+    padding: 16px;
+  }
+  #arena .big { font-size: 2rem; font-weight: 800; line-height: 1.2; margin-top: 6px; }
+  #arena .small { font-size: 1rem; margin-top: 8px; opacity: .95; font-weight: 600; }
+  #mascot { width: 150px; height: 150px; filter: drop-shadow(0 6px 6px rgba(0,0,0,.15)); }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  @keyframes shiver { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+  @keyframes pop { 0%{transform:scale(.7)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
+  .anim-bob    #mascot { animation: bob 2s ease-in-out infinite; }
+  .anim-shiver #mascot { animation: shiver .25s ease-in-out infinite; }
+  .anim-pop    #mascot { animation: pop .35s ease-out; }
+
+  /* states */
+  .state-idle   { background: linear-gradient(165deg, #cdeeff, #b6e0ff); }
+  .state-wait   { background: linear-gradient(165deg, var(--wait), var(--wait-dark)); color:#fff; }
+  .state-go     { background: linear-gradient(165deg, var(--go), var(--go-dark)); color:#fff; }
+  .state-result { background: linear-gradient(165deg, #fff2c9, #ffe08a); }
+  .state-early  { background: linear-gradient(165deg, #ffc04d, #ff9838); color:#fff; }
+
+  .flash { animation: flash .2s; }
+  @keyframes flash { from { filter: brightness(1.5); } to { filter: brightness(1); } }
+
+  .ripple {
+    position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,.35);
+    transform: translate(-50%,-50%) scale(0);
+    animation: ripple .5s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes ripple { to { transform: translate(-50%,-50%) scale(6); opacity: 0; } }
+
+  /* confetti + stars sprinkled in go/result */
+  .sparkle { position:absolute; font-size:1.4rem; animation: spin 1s linear infinite; pointer-events:none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #stats {
+    display: flex; gap: 10px; margin-top: 18px;
+    width: min(560px, 100%); flex-wrap: wrap;
+  }
+  .stat {
+    flex: 1 1 100px; background: var(--panel);
+    border-radius: 20px; padding: 12px 10px; text-align: center;
+    border: 3px solid #fff; box-shadow: 0 6px 0 rgba(0,0,0,.06);
+  }
+  .stat .label { font-size: .72rem; color: var(--muted); font-weight: 700; }
+  .stat .value { font-size: 1.5rem; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat .ico { font-size: 1.1rem; }
+
+  #rounds { display: flex; gap: 8px; margin-top: 16px; }
+  #rounds .dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; border: 3px solid #ffd27f;
+    display:flex; align-items:center; justify-content:center; font-size:.7rem;
+    transition: transform .3s;
+  }
+  #rounds .dot.done { background: var(--accent); border-color:#fff; transform: scale(1.15); }
+
+  #rank {
+    margin-top: 16px; min-height: 40px; text-align: center;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  #rank .rank-badge { width: 96px; height: 96px; animation: pop .5s ease-out; }
+  #rank .rank-name { font-size: 1.4rem; font-weight: 800; margin-top: 2px; }
+  #rank .rank-desc { color: var(--muted); font-size: .9rem; margin-top: 2px; font-weight:600; }
+
+  button.reset {
+    margin-top: 16px; background: var(--accent); border: none; color: #fff;
+    padding: 12px 26px; border-radius: 24px; cursor: pointer;
+    font-size: 1rem; font-weight: 800; font-family: inherit;
+    box-shadow: 0 5px 0 #d99400; transition: transform .1s, box-shadow .1s;
+  }
+  button.reset:active { transform: translateY(4px); box-shadow: 0 1px 0 #d99400; }
+
+  footer { color: var(--ink); font-size: .72rem; margin-top: auto; padding-top: 16px; opacity:.7; font-weight:600; }
+</style>
+</head>
+<body>
+  <div class="cloud" style="animation-duration:38s; top:8%;">☁️</div>
+  <div class="cloud" style="animation-duration:55s; top:22%; font-size:2rem;">☁️</div>
+  <div class="cloud" style="animation-duration:46s; top:70%; font-size:2.4rem;">☁️</div>
+
+  <header>
+    <h1>⚡ リアクションダッシュ</h1>
+    <div class="subtitle">あか → <b>みどり</b> になったらタッチ！</div>
+  </header>
+
+  <div id="arena" class="state-idle anim-bob">
+    <div id="mascotWrap"></div>
+    <div class="big" id="arenaBig">タッチしてスタート！</div>
+    <div class="small" id="arenaSmall">みどりになったしゅんかんに タッチしてね</div>
+  </div>
+
+  <div id="stats">
+    <div class="stat"><div class="label">こんかい</div><div class="value" id="statLast">—</div></div>
+    <div class="stat"><div class="label">へいきん</div><div class="value" id="statAvg">—</div></div>
+    <div class="stat"><div class="label">ベスト <span class="ico">👑</span></div><div class="value" id="statBest">—</div></div>
+  </div>
+
+  <div id="rounds">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+  </div>
+
+  <div id="rank"></div>
+
+  <button class="reset" id="resetBtn" style="display:none">もういちど！</button>
+
+  <footer>ベストきろくは このブラウザに ほぞんされるよ · スペースキーでもあそべます</footer>
+
+<script>
+(function () {
+  const arena = document.getElementById('arena');
+  const mascotWrap = document.getElementById('mascotWrap');
+  const big = document.getElementById('arenaBig');
+  const small = document.getElementById('arenaSmall');
+  const statLast = document.getElementById('statLast');
+  const statAvg = document.getElementById('statAvg');
+  const statBest = document.getElementById('statBest');
+  const rankEl = document.getElementById('rank');
+  const resetBtn = document.getElementById('resetBtn');
+  const dots = [...document.querySelectorAll('#rounds .dot')];
+
+  /* ---------- かわいいマスコット (SVG) ---------- */
+  // 体は共通のまるいオレンジのおばけ。顔と手だけ差し替える。
+  function mascot(face, arms, extra) {
+    return '<svg id="mascot" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">' +
+      (extra || '') +
+      // 体
+      '<ellipse cx="60" cy="72" rx="42" ry="40" fill="#ff9f5a"/>' +
+      '<ellipse cx="60" cy="86" rx="30" ry="22" fill="#ffd9a0"/>' +
+      // ほっぺ
+      '<circle cx="34" cy="70" r="7" fill="#ff7a7a" opacity=".55"/>' +
+      '<circle cx="86" cy="70" r="7" fill="#ff7a7a" opacity=".55"/>' +
+      arms + face +
+      '</svg>';
+  }
+  // 表情パーツ
+  const FACE = {
+    happy:  '<circle cx="47" cy="60" r="6" fill="#4a3f55"/><circle cx="73" cy="60" r="6" fill="#4a3f55"/>' +
+            '<circle cx="49" cy="58" r="2" fill="#fff"/><circle cx="75" cy="58" r="2" fill="#fff"/>' +
+            '<path d="M50 74 Q60 84 70 74" stroke="#4a3f55" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
+    wait:   '<path d="M42 60 Q47 55 52 60" stroke="#4a3f55" stroke-width="3.5" fill="none" stroke-linecap="round"/>' +
+            '<path d="M68 60 Q73 55 78 60" stroke="#4a3f55" stroke-width="3.5" fill="none" stroke-linecap="round"/>' +
+            '<ellipse cx="60" cy="76" rx="5" ry="6" fill="#4a3f55"/>' + // すぼめた口
+            '<path d="M90 54 q4 6 0 11" stroke="#7fd8ff" stroke-width="3" fill="none" stroke-linecap="round"/>', // あせ
+    go:     '<circle cx="47" cy="58" r="8" fill="#4a3f55"/><circle cx="73" cy="58" r="8" fill="#4a3f55"/>' +
+            '<circle cx="50" cy="55" r="3" fill="#fff"/><circle cx="76" cy="55" r="3" fill="#fff"/>' +
+            '<ellipse cx="60" cy="78" rx="10" ry="12" fill="#c0392b"/>' + // おおきくあけた口
+            '<ellipse cx="60" cy="83" rx="5" ry="6" fill="#ff8fa3"/>',
+    oops:   '<path d="M42 56 l10 8 M52 56 l-10 8" stroke="#4a3f55" stroke-width="3.5" stroke-linecap="round"/>' +
+            '<path d="M68 56 l10 8 M78 56 l-10 8" stroke="#4a3f55" stroke-width="3.5" stroke-linecap="round"/>' +
+            '<ellipse cx="60" cy="78" rx="7" ry="8" fill="#4a3f55"/>',
+    star:   '<path d="M40 58 l3 6 l6 1 l-4.5 4 l1 6 l-5.5 -3 l-5.5 3 l1 -6 l-4.5 -4 l6 -1 z" fill="#ffd24d"/>' +
+            '<path d="M80 58 l3 6 l6 1 l-4.5 4 l1 6 l-5.5 -3 l-5.5 3 l1 -6 l-4.5 -4 l6 -1 z" fill="#ffd24d"/>' +
+            '<path d="M50 74 Q60 86 70 74" stroke="#4a3f55" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+  };
+  const ARMS = {
+    wave:  '<path d="M22 72 Q10 64 14 52" stroke="#ff9f5a" stroke-width="10" fill="none" stroke-linecap="round"/>' +
+           '<path d="M98 74 Q108 72 108 64" stroke="#ff9f5a" stroke-width="10" fill="none" stroke-linecap="round"/>',
+    down:  '<path d="M24 78 Q18 92 24 100" stroke="#ff9f5a" stroke-width="10" fill="none" stroke-linecap="round"/>' +
+           '<path d="M96 78 Q102 92 96 100" stroke="#ff9f5a" stroke-width="10" fill="none" stroke-linecap="round"/>',
+    up:    '<path d="M22 66 Q8 50 16 38" stroke="#ff9f5a" stroke-width="10" fill="none" stroke-linecap="round"/>' +
+           '<path d="M98 66 Q112 50 104 38" stroke="#ff9f5a" stroke-width="10" fill="none" stroke-linecap="round"/>'
+  };
+  const POSE = {
+    idle:   mascot(FACE.happy, ARMS.wave),
+    wait:   mascot(FACE.wait,  ARMS.down),
+    go:     mascot(FACE.go,    ARMS.up),
+    oops:   mascot(FACE.oops,  ARMS.down),
+    result: mascot(FACE.star,  ARMS.up)
+  };
+
+  /* ---------- ランクのイラストバッジ (SVG) ---------- */
+  function badge(bg, inner) {
+    return '<svg class="rank-badge" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="50" cy="50" r="46" fill="'+bg+'" stroke="#fff" stroke-width="5"/>' + inner + '</svg>';
+  }
+  const RANKS = [
+    { max: 200, name: 'にんじゃ',   desc: 'すごい はやさ！にんじゃきゅう！',
+      svg: badge('#8e7cff','<circle cx="50" cy="52" r="26" fill="#3a2f66"/><rect x="26" y="44" width="48" height="12" rx="6" fill="#fff"/><circle cx="42" cy="50" r="4" fill="#3a2f66"/><circle cx="58" cy="50" r="4" fill="#3a2f66"/>') },
+    { max: 260, name: 'チーター',   desc: 'びゅーん！とても すばやい！',
+      svg: badge('#ffcf4d','<ellipse cx="50" cy="56" rx="24" ry="20" fill="#ffb03a"/><circle cx="41" cy="52" r="4" fill="#4a3f55"/><circle cx="59" cy="52" r="4" fill="#4a3f55"/><circle cx="35" cy="60" r="3" fill="#4a3f55"/><circle cx="65" cy="60" r="3" fill="#4a3f55"/><circle cx="50" cy="66" r="3" fill="#4a3f55"/><path d="M44 66 Q50 72 56 66" stroke="#4a3f55" stroke-width="2.5" fill="none"/>') },
+    { max: 340, name: 'にんげん',   desc: 'ふつうの はやさ！いいかんじ！',
+      svg: badge('#7fd8ff','<circle cx="50" cy="46" r="14" fill="#ffdba8"/><circle cx="45" cy="45" r="2.5" fill="#4a3f55"/><circle cx="55" cy="45" r="2.5" fill="#4a3f55"/><path d="M45 51 Q50 55 55 51" stroke="#4a3f55" stroke-width="2.5" fill="none"/><path d="M34 78 Q50 62 66 78" fill="#6bbcff"/>') },
+    { max: 460, name: 'ねぼすけ',   desc: 'すこし ねむい？おきてー！',
+      svg: badge('#ffd0e0','<circle cx="50" cy="52" r="24" fill="#fff0c2"/><path d="M40 50 Q45 46 50 50" stroke="#4a3f55" stroke-width="2.5" fill="none"/><path d="M50 50 Q55 46 60 50" stroke="#4a3f55" stroke-width="2.5" fill="none"/><ellipse cx="50" cy="60" rx="4" ry="5" fill="#4a3f55"/><text x="64" y="36" font-size="14" fill="#4a3f55">z</text>') },
+    { max: Infinity, name: 'なまけもの', desc: 'ゆっくりでも いいんだよ〜',
+      svg: badge('#b8e6b0','<ellipse cx="50" cy="54" rx="26" ry="22" fill="#c9a06a"/><circle cx="40" cy="52" r="8" fill="#6b4f2a"/><circle cx="60" cy="52" r="8" fill="#6b4f2a"/><circle cx="41" cy="53" r="3" fill="#fff"/><circle cx="59" cy="53" r="3" fill="#fff"/><path d="M44 64 Q50 68 56 64" stroke="#6b4f2a" stroke-width="2.5" fill="none"/>') }
+  ];
+
+  const TOTAL_ROUNDS = 5;
+  let state = 'idle';
+  let goTime = 0;
+  let timer = null;
+  let times = [];
+  let best = Number(localStorage.getItem('reactionDashBest')) || null;
+  if (best) statBest.textContent = best;
+
+  function setArena(cls, anim, pose, bigText, smallText) {
+    arena.className = cls + ' ' + anim;
+    mascotWrap.innerHTML = POSE[pose];
+    big.textContent = bigText;
+    small.textContent = smallText || '';
+    void arena.offsetWidth;
+    arena.classList.add('flash');
+  }
+
+  function ripple(x, y) {
+    const r = document.createElement('div');
+    r.className = 'ripple';
+    const rect = arena.getBoundingClientRect();
+    r.style.left = (x - rect.left) + 'px';
+    r.style.top = (y - rect.top) + 'px';
+    r.style.width = r.style.height = '60px';
+    arena.appendChild(r);
+    setTimeout(() => r.remove(), 520);
+  }
+
+  function sparkles() {
+    const marks = ['⭐','✨','🌟'];
+    for (let i = 0; i < 5; i++) {
+      const s = document.createElement('div');
+      s.className = 'sparkle';
+      s.textContent = marks[i % marks.length];
+      s.style.left = (15 + Math.random() * 70) + '%';
+      s.style.top = (10 + Math.random() * 70) + '%';
+      s.style.animationDelay = (Math.random() * .3) + 's';
+      arena.appendChild(s);
+      setTimeout(() => s.remove(), 1200);
+    }
+  }
+
+  function beep(freq, dur) {
+    try {
+      const ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = freq; o.type = 'triangle';
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(.18, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + dur);
+      o.start(); o.stop(ctx.currentTime + dur);
+    } catch (e) {}
+  }
+
+  function startRound() {
+    state = 'waiting';
+    setArena('state-wait', 'anim-shiver', 'wait', 'まて…', 'みどりになったら タッチ！');
+    const delay = 1200 + Math.random() * 2300;
+    timer = setTimeout(goGreen, delay);
+  }
+
+  function goGreen() {
+    state = 'go';
+    goTime = performance.now();
+    setArena('state-go', 'anim-pop', 'go', 'タッチ！', '');
+    sparkles();
+    beep(880, .12);
+  }
+
+  function registerTime(ms) {
+    times.push(ms);
+    statLast.textContent = ms;
+    dots[times.length - 1].classList.add('done');
+    dots[times.length - 1].textContent = '⭐';
+
+    if (!best || ms < best) {
+      best = ms;
+      localStorage.setItem('reactionDashBest', best);
+      statBest.textContent = best;
+    }
+
+    if (times.length >= TOTAL_ROUNDS) {
+      finish();
+    } else {
+      state = 'result';
+      setArena('state-result', 'anim-pop', 'result', ms + ' ms', 'タッチで つぎへ (' + times.length + '/' + TOTAL_ROUNDS + ')');
+    }
+  }
+
+  function finish() {
+    state = 'done';
+    const avg = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+    statAvg.textContent = avg;
+    const rank = RANKS.find(r => avg <= r.max);
+    setArena('state-result', 'anim-pop', 'result', avg + ' ms', '5かいの へいきんタイム！');
+    sparkles();
+    rankEl.innerHTML = rank.svg +
+      '<div class="rank-name">' + rank.name + '</div>' +
+      '<div class="rank-desc">' + rank.desc + '</div>';
+    resetBtn.style.display = 'inline-block';
+    beep(660, .15); setTimeout(() => beep(990, .2), 140); setTimeout(() => beep(1320, .25), 300);
+  }
+
+  function handleTap(e) {
+    if (e && e.clientX != null) ripple(e.clientX, e.clientY);
+
+    switch (state) {
+      case 'idle':
+        times = [];
+        dots.forEach(d => { d.classList.remove('done'); d.textContent = ''; });
+        statLast.textContent = '—';
+        statAvg.textContent = '—';
+        rankEl.innerHTML = '';
+        resetBtn.style.display = 'none';
+        startRound();
+        break;
+      case 'waiting':
+        clearTimeout(timer);
+        state = 'result';
+        beep(160, .3);
+        setArena('state-early', 'anim-shiver', 'oops', 'はやすぎ！ 🙈', 'タッチで もういちど このかい');
+        break;
+      case 'go': {
+        const ms = Math.round(performance.now() - goTime);
+        registerTime(ms);
+        break;
+      }
+      case 'result':
+        startRound();
+        break;
+      case 'done':
+        break;
+    }
+  }
+
+  arena.addEventListener('pointerdown', handleTap);
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space') { e.preventDefault(); if (state !== 'done') handleTap({}); }
+  });
+  resetBtn.addEventListener('click', function () {
+    state = 'idle';
+    setArena('state-idle', 'anim-bob', 'idle', 'タッチしてスタート！', 'みどりになったしゅんかんに タッチしてね');
+    statAvg.textContent = '—';
+    rankEl.innerHTML = '';
+    resetBtn.style.display = 'none';
+  });
+
+  // 初期表示
+  setArena('state-idle', 'anim-bob', 'idle', 'タッチしてスタート！', 'みどりになったしゅんかんに タッチしてね');
+})();
+</script>
+</body>
+</html>
